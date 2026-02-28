@@ -33,7 +33,8 @@ git fetch upstream && git merge upstream/main
 | File | Change |
 |---|---|
 | `package.json` | `dev` script loads `.dev.vars` and sets `WRANGLER_CONFIG_PATH` |
-| `vite.config.ts` | `configPath` reads `WRANGLER_CONFIG_PATH` env var |
+| `vite.config.ts` | `configPath` reads `WRANGLER_CONFIG_PATH` env var + `customOverridesPlugin` |
+| `src/main.tsx` | Imports `src/custom/styles.css` |
 | `CLAUDE.md` | Our additions |
 | `.gitignore` | Added `wrangler.local.jsonc` |
 

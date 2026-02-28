@@ -1,8 +1,32 @@
 // import { sentryVitePlugin } from '@sentry/vite-plugin';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import path from 'path';
+import fs from 'fs';
+
+/**
+ * Checks src/custom/overrides/ for a matching file before falling back to core.
+ * To override @/components/foo/bar, create src/custom/overrides/components/foo/bar.tsx
+ */
+function customOverridesPlugin(): Plugin {
+	const overridesDir = path.resolve(__dirname, 'src/custom/overrides');
+	const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+	return {
+		name: 'custom-overrides',
+		resolveId(source) {
+			if (!source.startsWith('@/')) return null;
+			const rel = source.slice(2);
+			const base = path.join(overridesDir, rel);
+			if (fs.existsSync(base)) return base;
+			for (const ext of extensions) {
+				const candidate = base + ext;
+				if (fs.existsSync(candidate)) return candidate;
+			}
+			return null;
+		},
+	};
+}
 
 import { cloudflare } from '@cloudflare/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
@@ -25,6 +49,7 @@ export default defineConfig({
 	//     }
 	// },
 	plugins: [
+		customOverridesPlugin(),
 		react(),
 		svgr(),
 		cloudflare({

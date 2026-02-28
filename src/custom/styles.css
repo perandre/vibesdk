@@ -1,0 +1,13 @@
+/*
+ * Custom styles — loaded after core styles, so anything here wins.
+ *
+ * The app uses Tailwind CSS variables for its design tokens.
+ * Override them here to retheme the entire UI without touching core.
+ *
+ * Example token overrides (see src/index.css for the full list):
+ *
+ * :root {
+ *   --color-accent: oklch(0.65 0.2 250);       change primary/accent color
+ *   --font-sans: 'Inter', sans-serif;           change font
+ * }
+ */
