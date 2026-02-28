@@ -13,12 +13,15 @@ bun run test         # Run all tests (vitest)
 bun run test -- path/to/file.test.ts  # Run a single test file
 bun run deploy       # Build and deploy to Cloudflare (reads .prod.vars)
 
+bun run templates          # Seed local R2 with template catalog + zips (run once after setup)
 bun run db:migrate:local   # Apply migrations to local D1
 bun run db:migrate:remote  # Apply migrations to remote D1
 bun run db:studio          # Open Drizzle Studio for local DB
 ```
 
-`bun run dev` loads credentials from `.dev.vars` automatically and uses `wrangler.local.jsonc` (gitignored) for local overrides. See `docs/local-dev-setup.md`.
+`bun run dev` loads credentials from `.dev.vars` automatically and uses `wrangler.local.jsonc` (gitignored) for local overrides.
+
+The upstream repo has an interactive `bun run setup` that handles full onboarding (credentials, resource creation, template deployment). We don't use it because it modifies `wrangler.jsonc` in-place — instead all local config lives in `wrangler.local.jsonc` to keep `wrangler.jsonc` pristine for upstream merges. See `docs/local-dev-setup.md`.
 
 ## Upstream Strategy
 
@@ -32,11 +35,11 @@ git fetch upstream && git merge upstream/main
 
 | File | Change |
 |---|---|
-| `package.json` | `dev` script loads `.dev.vars` and sets `WRANGLER_CONFIG_PATH` |
+| `package.json` | `dev` script loads `.dev.vars` + sets `WRANGLER_CONFIG_PATH`; added `templates` script |
 | `vite.config.ts` | `configPath` reads `WRANGLER_CONFIG_PATH` env var + `customOverridesPlugin` |
 | `src/main.tsx` | Imports `src/custom/styles.css` |
 | `CLAUDE.md` | Our additions |
-| `.gitignore` | Added `wrangler.local.jsonc` |
+| `.gitignore` | Added `wrangler.local.jsonc`, `.templates-repo` |
 
 `wrangler.jsonc` is pristine upstream. When it changes upstream, mirror relevant parts into `wrangler.local.jsonc` manually.
 

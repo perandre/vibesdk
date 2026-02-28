@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"setup": "tsx scripts/setup.ts",
+		"templates": "bash scripts/setup-local-templates.sh",
 		"prepare": "husky",
 		"dev": "export $(grep -v '^#' .dev.vars | xargs) && WRANGLER_CONFIG_PATH=wrangler.local.jsonc DEV_MODE=true vite",
 		"build": "tsc -b --incremental && vite build",

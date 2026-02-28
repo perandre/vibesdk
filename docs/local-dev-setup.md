@@ -1,16 +1,23 @@
 # Local Dev Setup Notes
 
-This documents the changes made to get vibesdk running locally on a free Cloudflare account.
+This documents how this fork is configured for local development on a free Cloudflare account.
+
+## Why not `bun run setup`?
+
+The upstream repo ships an interactive setup script (`bun run setup`) that handles credentials, resource creation, and template deployment automatically. We deliberately did not use it because it modifies `wrangler.jsonc` in-place with account-specific IDs and flags. That would make every upstream merge noisy.
+
+Instead, all local overrides live in `wrangler.local.jsonc` (gitignored), and `wrangler.jsonc` stays pristine upstream. The dev script passes `WRANGLER_CONFIG_PATH=wrangler.local.jsonc` so wrangler uses our overrides automatically.
+
+`bun run setup` is still useful if you want to configure AI Gateway, OAuth providers, or production deployment — just be aware it will modify `wrangler.jsonc` and you'll need to reconcile that with `wrangler.local.jsonc`.
 
 ## Prerequisites
 
-- Node.js v18+
-- Bun — installed via `curl -fsSL https://bun.sh/install | bash`, then `source ~/.zshrc`
+- Bun — `curl -fsSL https://bun.sh/install | bash`, then `source ~/.zshrc`
 - Cloudflare account (free tier) with:
   - API token (see permissions below)
   - Account ID (from Workers & Pages dashboard)
   - A registered `workers.dev` subdomain (Compute → Workers & Pages → set subdomain)
-- Google AI Studio API key (free at aistudio.google.com) — default AI provider, requires no model config changes
+- Google AI Studio API key (free at aistudio.google.com)
 
 ### Cloudflare API token permissions
 
@@ -23,92 +30,86 @@ Workers AI (Edit), Account Analytics (Read)
 
 ```bash
 bun install
+cp .dev.vars.example .dev.vars   # fill in credentials (see below)
 bun run db:migrate:local
+bun run templates                # seeds local R2 with template catalog + zips
 bun run dev
 ```
 
-## wrangler.jsonc changes
-
-### 1. Dispatch namespaces — commented out
-Workers for Platforms is a paid feature (error code 10121). The `DISPATCHER` binding is only used for the "Deploy to Cloudflare" button and is not needed for local dev.
-
-```jsonc
-// "dispatch_namespaces": [
-//     {
-//         "binding": "DISPATCHER",
-//         "namespace": "vibesdk-default-namespace",
-//         "remote": true
-//     }
-// ],
-```
-
-### 2. D1 — removed `"remote": true`
-The hardcoded `database_id` belongs to Cloudflare's production account, not ours. Removing `remote` makes wrangler use the local SQLite simulation instead. Migrations were applied locally via `bun run db:migrate:local`.
-
-### 3. R2 — removed `"remote": true`
-R2 is enabled per-account and requires a payment method even on the free tier. Removing `remote` makes wrangler simulate R2 locally. The templates bucket will be empty but the app still starts.
-
-### 4. KV — updated namespace ID
-The hardcoded KV ID belongs to Cloudflare's production account. A new KV namespace was created:
-
-```bash
-bunx wrangler kv namespace create "VibecoderStore"
-```
-
-New ID: `b74d2cd5ac4140599d835d9a327146ef`
-
-### 5. Containers — disabled
-Docker is required for the sandbox container feature (`UserAppSandboxService`). Not needed for basic local dev.
-
-```jsonc
-"dev": {
-    "enable_containers": false
-}
-```
-
-## package.json changes
-
-The `dev` script was updated to automatically load `.dev.vars` as process environment variables (needed for wrangler CLI authentication):
-
-```json
-"dev": "export $(grep -v '^#' .dev.vars | xargs) && DEV_MODE=true vite"
-```
-
-Without this, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` would need to be passed manually on the command line each time.
-
 ## .dev.vars
-
-Copy from `.dev.vars.example` and fill in:
 
 ```
 CLOUDFLARE_API_TOKEN="..."
 CLOUDFLARE_ACCOUNT_ID="..."
 GOOGLE_AI_STUDIO_API_KEY="..."
 CUSTOM_DOMAIN="localhost:5173"
-JWT_SECRET="<random hex>"
-WEBHOOK_SECRET="<random hex>"
+JWT_SECRET="<openssl rand -hex 32>"
+WEBHOOK_SECRET="<openssl rand -hex 32>"
 ```
 
 `CUSTOM_DOMAIN` is required — the app throws "Application domain is not set" without it.
 
-Generate secrets with: `openssl rand -hex 32`
+## wrangler.local.jsonc (our local overrides)
+
+All account-specific and local-only config lives here. `wrangler.jsonc` is never touched.
+
+### Dispatch namespaces — removed
+
+Workers for Platforms is a paid feature (error code 10121). The `DISPATCHER` binding is only used for the "Deploy to Cloudflare" button, not needed locally.
+
+### D1 — `"remote": true` removed
+
+The upstream `database_id` belongs to Cloudflare's account. Without `remote`, wrangler uses a local SQLite simulation. Migrations applied via `bun run db:migrate:local`.
+
+### R2 — `"remote": true` removed
+
+R2 requires a payment method even on the free tier. Local simulation is used instead. Templates are seeded via `bun run templates`.
+
+### KV — namespace ID updated
+
+The upstream KV ID belongs to Cloudflare's account. A new namespace was created:
+
+```bash
+bunx wrangler kv namespace create "VibecoderStore"
+# → b74d2cd5ac4140599d835d9a327146ef
+```
+
+### Containers — disabled
+
+Docker is required for the sandbox container feature. Not needed for basic local dev.
+
+```jsonc
+"dev": { "enable_containers": false }
+```
+
+## Templates (R2)
+
+The app reads `template_catalog.json` from local R2 on startup. Without it, the template picker throws "Template catalog not found".
+
+```bash
+bun run templates
+```
+
+This script (`scripts/setup-local-templates.sh`) clones `https://github.com/cloudflare/vibesdk-templates` to `.templates-repo/` (gitignored) and runs their `deploy_templates.sh` with `LOCAL_R2=true`. Requires Python 3 + PyYAML. Re-run when upstream adds new templates.
+
+Note: `bun run setup` also deploys templates as part of the full onboarding flow.
 
 ## Authentication
 
-OAuth (Google/GitHub) is not required. When no OAuth providers are configured, email/password registration is available at `/login`. No email sending is involved — accounts are created directly in the local D1 database.
+OAuth is not required. When no OAuth providers are configured, email/password registration is available at `/login`. Accounts are created directly in the local D1 database.
 
-`ALLOWED_EMAIL` in `wrangler.jsonc` vars is empty by default, meaning any email can register. Set it to restrict signups to a single address.
+`ALLOWED_EMAIL` in `wrangler.local.jsonc` vars is empty by default (any email can register). Set it to restrict signups.
 
 ## Starting the dev server
 
 ```bash
-bun run dev
+bun run dev    # http://localhost:5173
 ```
 
-Runs at http://localhost:5173
+The `dev` script loads `.dev.vars` automatically and sets `WRANGLER_CONFIG_PATH=wrangler.local.jsonc`.
 
 ## What does not work locally
 
-- **Sandbox**: Code execution in generated apps requires Docker + Cloudflare Containers (paid)
-- **Deploy to Cloudflare button**: Requires Workers for Platforms (paid)
-- **Remote D1/KV/R2**: All data is local only and will not persist to Cloudflare
+- **Sandbox/code execution**: requires Docker + Cloudflare Containers (paid)
+- **Deploy to Cloudflare button**: requires Workers for Platforms (paid)
+- **Remote D1/KV/R2**: all data is local only

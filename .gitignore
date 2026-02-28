@@ -42,6 +42,7 @@ test.ts
 temp/
 
 templates
+.templates-repo
 debugging.ipynb
 
 #bun.lock
