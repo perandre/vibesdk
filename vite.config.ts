@@ -10,18 +10,34 @@ import fs from 'fs';
  * To override @/components/foo/bar, create src/custom/overrides/components/foo/bar.tsx
  */
 function customOverridesPlugin(): Plugin {
+	const srcDir = path.resolve(__dirname, 'src');
 	const overridesDir = path.resolve(__dirname, 'src/custom/overrides');
 	const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+
+	function findOverride(relFromSrc: string): string | null {
+		const base = path.join(overridesDir, relFromSrc);
+		if (fs.existsSync(base)) return base;
+		for (const ext of extensions) {
+			const candidate = base + ext;
+			if (fs.existsSync(candidate)) return candidate;
+		}
+		return null;
+	}
+
 	return {
 		name: 'custom-overrides',
-		resolveId(source) {
-			if (!source.startsWith('@/')) return null;
-			const rel = source.slice(2);
-			const base = path.join(overridesDir, rel);
-			if (fs.existsSync(base)) return base;
-			for (const ext of extensions) {
-				const candidate = base + ext;
-				if (fs.existsSync(candidate)) return candidate;
+		enforce: 'pre',
+		resolveId(source, importer) {
+			// @/ absolute imports
+			if (source.startsWith('@/')) {
+				return findOverride(source.slice(2));
+			}
+			// relative imports — resolve against importer and check if it's in src/
+			if (source.startsWith('.') && importer) {
+				const resolved = path.resolve(path.dirname(importer), source);
+				if (resolved.startsWith(srcDir)) {
+					return findOverride(path.relative(srcDir, resolved));
+				}
 			}
 			return null;
 		},
