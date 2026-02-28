@@ -42,10 +42,13 @@ bun run dev
 CLOUDFLARE_API_TOKEN="..."
 CLOUDFLARE_ACCOUNT_ID="..."
 GOOGLE_AI_STUDIO_API_KEY="..."
+CLOUDFLARE_AI_GATEWAY_URL="https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_name>"
 CUSTOM_DOMAIN="localhost:5173"
 JWT_SECRET="<openssl rand -hex 32>"
 WEBHOOK_SECRET="<openssl rand -hex 32>"
 ```
+
+`CLOUDFLARE_AI_GATEWAY_URL` — create a free AI Gateway at Cloudflare dashboard → AI → AI Gateway. The base URL is `https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_name}`. The inference code appends the provider path automatically.
 
 `CUSTOM_DOMAIN` is required — the app throws "Application domain is not set" without it.
 
@@ -74,13 +77,20 @@ bunx wrangler kv namespace create "VibecoderStore"
 # → b74d2cd5ac4140599d835d9a327146ef
 ```
 
-### Containers — disabled
+### ENVIRONMENT — set to "development"
 
-Docker is required for the sandbox container feature. Not needed for basic local dev.
+`isDev(env)` in `worker/utils/envs.ts` checks this value. Without it, `localhost` origins are not added to the WebSocket allowed-origins list, causing all WebSocket connections to return 403 and fail permanently.
+
+### Containers — enabled (requires Docker)
+
+The sandbox container feature uses Docker locally. Docker Desktop must be running.
 
 ```jsonc
-"dev": { "enable_containers": false }
+"containers": [{ "class_name": "UserAppSandboxService", "image": "./SandboxDockerfile", "max_instances": 3 }],
+"dev": { "enable_containers": true }
 ```
+
+If you don't have Docker, set `enable_containers: false` and remove the `containers` block — code generation will work but the app preview/execution step will fail.
 
 ## Templates (R2)
 
@@ -110,6 +120,6 @@ The `dev` script loads `.dev.vars` automatically and sets `WRANGLER_CONFIG_PATH=
 
 ## What does not work locally
 
-- **Sandbox/code execution**: requires Docker + Cloudflare Containers (paid)
+- **Sandbox/code execution**: requires Docker Desktop running locally (see Containers section above)
 - **Deploy to Cloudflare button**: requires Workers for Platforms (paid)
 - **Remote D1/KV/R2**: all data is local only
