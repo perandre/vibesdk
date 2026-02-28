@@ -29,6 +29,7 @@ dist
 # wrangler files
 .wrangler
 .dev.vars*
+wrangler.local.jsonc
 .prod.vars
 .env
 .env.*
