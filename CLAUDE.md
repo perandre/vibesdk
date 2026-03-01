@@ -40,6 +40,7 @@ git fetch upstream && git merge upstream/main
 | `src/main.tsx` | Imports `src/custom/styles.css` |
 | `CLAUDE.md` | Our additions |
 | `.gitignore` | Added `wrangler.local.jsonc`, `.templates-repo` |
+| `SandboxDockerfile` | Added `EXPOSE 8001` for local dev port proxying |
 
 `wrangler.jsonc` is pristine upstream. When it changes upstream, mirror relevant parts into `wrangler.local.jsonc` manually.
 

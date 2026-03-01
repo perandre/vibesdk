@@ -24,6 +24,7 @@ RUN mkdir -p /workspace/container /workspace/data
 COPY container/ /workspace/container/
 
 # Expose the ports you want to expose
+# 3000 = container control server; 8001 = user app dev server (local dev only)
 
 # Install dependencies for the monitoring system
 WORKDIR /workspace/container
@@ -58,7 +59,7 @@ ENV VITE_LOGGER_TYPE=json
 # # Reset workdir
 WORKDIR /container-server
 
-EXPOSE 3000
+EXPOSE 3000 8001
 
 # Use startup script
 CMD ["./startup.sh"]
