@@ -627,6 +627,25 @@ export class SandboxSdkClient extends BaseSandboxService {
         return false;
     }
 
+    /**
+     * In local dev, the preview proxy URL uses wrangler's dev server port (5173), not the
+     * container's internal port (8001). Vite's HMR client needs to connect on port 5173 so
+     * the WebSocket upgrade goes through the wrangler proxy (which already handles WS upgrades).
+     * Without this patch, Vite tells the browser "connect HMR to localhost:8001" which fails.
+     */
+    private async patchViteConfigForLocalDev(instanceId: string, proxyPort: number): Promise<void> {
+        const configPath = `/workspace/${instanceId}/vite.config.ts`;
+        // Insert `hmr: { clientPort: <proxyPort> },` right after the opening `server: {`
+        // Uses sed's 0,/pattern/ form so only the first occurrence is replaced.
+        const cmd = `sed -i '0,/server: {/s/server: {/server: {\\n      hmr: { clientPort: ${proxyPort} },/' ${configPath}`;
+        const result = await this.safeSandboxExec(cmd);
+        if (result.exitCode !== 0) {
+            this.logger.warn('Could not patch vite.config.ts for local HMR — HMR WebSocket may fail', { instanceId });
+        } else {
+            this.logger.info('Patched vite.config.ts with hmr.clientPort for local dev proxy', { instanceId, proxyPort });
+        }
+    }
+
     private async startDevServer(instanceId: string, initCommand: string, port: number): Promise<string> {
         try {
             // Use session-based process management
@@ -947,6 +966,11 @@ export class SandboxSdkClient extends BaseSandboxService {
                 try {
                     if (localEnvVars) {
                         await this.setLocalEnvVars(instanceId, localEnvVars);
+                    }
+                    if (isDev(env)) {
+                        // Patch vite.config.ts so HMR WebSocket connects through the wrangler proxy
+                        const wranglerDevPort = 5173;
+                        await this.patchViteConfigForLocalDev(instanceId, wranglerDevPort);
                     }
                     // Start dev server on allocated port
                     const processId = await this.startDevServer(instanceId, initCommand, allocatedPort);
