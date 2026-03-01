@@ -26,6 +26,8 @@ Workers KV Storage (Edit), Workers Scripts (Edit), D1 (Edit), R2 Storage (Edit),
 AI Gateway (Edit), Cloudflare Pages (Edit), Workers Builds Configuration (Edit),
 Workers AI (Edit), Account Analytics (Read)
 
+Optional — add **Browser Rendering (Read)** to enable screenshot capture. Without it you get a non-blocking 401 in the logs when the UI requests a screenshot.
+
 ## First-time setup
 
 ```bash
@@ -123,3 +125,4 @@ The `dev` script loads `.dev.vars` automatically and sets `WRANGLER_CONFIG_PATH=
 - **Sandbox/code execution**: requires Docker Desktop running locally (see Containers section above)
 - **Deploy to Cloudflare button**: requires Workers for Platforms (paid)
 - **Remote D1/KV/R2**: all data is local only
+- **Screenshots**: non-blocking 401 unless "Browser Rendering (Read)" is added to the API token
